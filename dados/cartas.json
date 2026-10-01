@@ -1,0 +1,17 @@
+[
+  {"id": "especialista_agua", "nome": "Especialista em Água", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Água.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Água", "bonus_pct": 10}},
+  {"id": "especialista_fogo", "nome": "Especialista em Fogo", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Fogo.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Fogo", "bonus_pct": 10}},
+  {"id": "especialista_planta", "nome": "Especialista em Planta", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Planta.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Planta", "bonus_pct": 10}},
+  {"id": "especialista_eletrico", "nome": "Especialista em Elétrico", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Elétrico.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Elétrico", "bonus_pct": 10}},
+  {"id": "especialista_psiquico", "nome": "Especialista em Psíquico", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Psíquico.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Psíquico", "bonus_pct": 10}},
+  {"id": "especialista_terrestre", "nome": "Especialista em Terrestre", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Terrestre.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Terrestre", "bonus_pct": 10}},
+  {"id": "especialista_pedra", "nome": "Especialista em Pedra", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Pedra.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Pedra", "bonus_pct": 10}},
+  {"id": "especialista_normal", "nome": "Especialista em Normal", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Normal.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Normal", "bonus_pct": 10}},
+  {"id": "especialista_fantasma", "nome": "Especialista em Fantasma", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Fantasma.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Fantasma", "bonus_pct": 10}},
+  {"id": "especialista_dragao", "nome": "Especialista em Dragão", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Dragão.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Dragão", "bonus_pct": 10}},
+  {"id": "especialista_veneno", "nome": "Especialista em Veneno", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Veneno.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Veneno", "bonus_pct": 10}},
+  {"id": "especialista_voador", "nome": "Especialista em Voador", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Voador.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Voador", "bonus_pct": 10}},
+  {"id": "conhecimento", "nome": "Conhecimento", "descricao": "+5% de XP em qualquer batalha.", "efeito": {"tipo": "xp_global", "bonus_pct": 5}},
+  {"id": "xp_extra", "nome": "XP Extra", "descricao": "+10% de XP em qualquer batalha.", "efeito": {"tipo": "xp_global", "bonus_pct": 10}},
+  {"id": "mestre_pokedex", "nome": "Mestre da Pokédex", "descricao": "+15% de XP contra Pokémon de nível 51 ou mais.", "efeito": {"tipo": "xp_nivel_minimo", "nivel_minimo": 51, "bonus_pct": 15}}
+]
