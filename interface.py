@@ -40,7 +40,7 @@ class InterfaceConsole:
 
     def titulo(self) -> None:
         print(_linha())
-        print("      POKÉMON QUIZ ROGUELIKE".center(LARGURA))
+        print("      POKERUN".center(LARGURA))
         print(_linha())
         print("Responda perguntas e suba até o nível 100!")
 
