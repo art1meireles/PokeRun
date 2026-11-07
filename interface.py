@@ -1,9 +1,7 @@
-# Interface do jogo em texto (teclado e tela)
-
 import cartas as cartas_mod
 import experiencia
+import itens as itens_mod
 from oponentes import NOMES_DIFICULDADE
-from jogador import NOMES_CONSUMIVEIS
 
 LARGURA = 44
 
@@ -15,7 +13,7 @@ def _linha(char="="):
 class InterfaceConsole:
     """Interface em texto, com entrada pelo teclado."""
 
-    # entrada
+    # ---------- entrada ----------
     def _ler(self, prompt: str) -> str:
         return input(prompt).strip()
 
@@ -34,13 +32,13 @@ class InterfaceConsole:
             if texto in ("n", "nao", "não"):
                 return False
 
-    # telas
+    # ---------- telas ----------
     def mensagem(self, texto: str) -> None:
         print(texto)
 
     def titulo(self) -> None:
         print(_linha())
-        print("      POKERUN".center(LARGURA))
+        print("      POKÉMON QUIZ ROGUELIKE".center(LARGURA))
         print(_linha())
         print("Responda perguntas e suba até o nível 100!")
 
@@ -67,8 +65,8 @@ class InterfaceConsole:
             print(f"Cartas: {nomes}")
         else:
             print("Cartas: (nenhuma)")
-        itens = ", ".join(f"{NOMES_CONSUMIVEIS[k]} x{v}" for k, v in jogador.consumiveis.items() if v > 0)
-        print(f"Consumíveis: {itens or '(nenhum)'}")
+        itens = ", ".join(itens_mod.ITENS[i]["nome"] for i in jogador.itens)
+        print(f"Itens: {itens or '(nenhum)'}")
         print(_linha("-"))
 
     def mostrar_batalha(self, jogador, oponente) -> None:
@@ -77,22 +75,48 @@ class InterfaceConsole:
         print(_linha())
         print(f"Seu Pokémon: {jogador.pokemon}\n")
         print("VS\n")
-        print(f"Oponente: {oponente.nome}")
+        marca = "★ SHINY ★ " if oponente.shiny else ""
+        print(f"Oponente: {marca}{oponente.nome}")
         print(f"Tipo: {oponente.tipo_texto}")
         print(f"Nível: {oponente.nivel}\n")
         print(f"Dificuldade: {NOMES_DIFICULDADE[oponente.dificuldade]}")
         print(_linha())
 
-    def perguntar(self, pergunta, acertos, erros):
+    def perguntar(self, pergunta, acertos, erros, eliminadas=(), itens_usaveis=()):
+        """Retorna o índice da resposta, ou None se o jogador digitou 0 (menu de itens)."""
         print(f"\nAcertos: {acertos}/3   Erros: {erros}/3")
         print(f"\n{pergunta.texto}")
-        for i, op in enumerate(pergunta.opcoes, 1):
-            print(f"  {i}. {op}")
+        for i, op in enumerate(pergunta.opcoes):
+            if i in eliminadas:
+                print(f"  {i + 1}. ---")
+            else:
+                print(f"  {i + 1}. {op}")
+        if itens_usaveis:
+            print("  0. Itens")
+        minimo = 0 if itens_usaveis else 1
         while True:
-            texto = self._ler(f"Resposta (1-{len(pergunta.opcoes)}): ")
-            if texto.isdigit() and 1 <= int(texto) <= len(pergunta.opcoes):
-                return int(texto) - 1
+            texto = self._ler(f"Resposta ({minimo}-{len(pergunta.opcoes)}): ")
+            if not texto.isdigit():
+                print("  Opção inválida.")
+                continue
+            n = int(texto)
+            if n == 0 and itens_usaveis:
+                return None
+            if 1 <= n <= len(pergunta.opcoes) and (n - 1) not in eliminadas:
+                return n - 1
             print("  Opção inválida.")
+
+    def escolher_item(self, itens_usaveis):
+        """Menu de itens. Retorna o id do item escolhido ou None para voltar."""
+        print("\nITENS (1 por batalha):")
+        for i, ident in enumerate(itens_usaveis, 1):
+            item = itens_mod.ITENS[ident]
+            print(f"  {i}. {item['nome']} — {item['descricao']}")
+        n = self._ler_numero("Item (0 para voltar): ", 0, len(itens_usaveis))
+        return None if n == 0 else itens_usaveis[n - 1]
+
+    def item_usado(self, ident) -> None:
+        print(f"» Você usou: {itens_mod.ITENS[ident]['nome']}")
 
     def mostrar_resposta(self, pergunta, acertou) -> None:
         if acertou:
@@ -106,8 +130,12 @@ class InterfaceConsole:
 
     def resultado_batalha(self, resultado, oponente, xp_ganho=0) -> None:
         print()
-        if resultado.vitoria:
+        if resultado.vitoria and oponente.shiny:
+            print(f"★ Você derrotou o Shiny {oponente.nome}!")
+        elif resultado.vitoria:
             print(f"★ VITÓRIA contra {oponente.nome}! (+{xp_ganho} XP)")
+        elif oponente.shiny:
+            print(f"O Shiny {oponente.nome} escapou... (sem penalidade)")
         elif resultado.segunda_chance_usada:
             print("Segunda Chance usada: a jornada continua (sem XP).")
         else:
@@ -116,21 +144,41 @@ class InterfaceConsole:
     def level_up(self, nivel) -> None:
         print(f"\n▲ LEVEL UP! Você chegou ao nível {nivel}!")
 
-    def consumivel_ganho(self, nome) -> None:
-        print(f"Você ganhou: {NOMES_CONSUMIVEIS[nome]} x1")
+    def item_ganho(self, ident) -> None:
+        print(f"Você ganhou: {itens_mod.ITENS[ident]['nome']}")
 
-    def escolher_carta(self, opcoes, atuais):
-        """Retorna o índice escolhido em `opcoes`, ou None para manter as atuais."""
+    def shiny_apareceu(self, oponente) -> None:
+        print("\n" + _linha("*"))
+        print(f"UM {oponente.nome.upper()} SHINY APARECEU!".center(LARGURA))
+        print(_linha("*"))
+
+    def recompensa_shiny(self, tipo, valor) -> None:
+        """tipo: "carta" (valor = id), "item" (valor = id) ou "xp" (valor = quantidade)."""
+        if tipo == "carta":
+            c = cartas_mod.CARTAS[valor]
+            print(f"RECOMPENSA SHINY — carta: {c['nome']} — {c['descricao']}")
+        elif tipo == "item":
+            i = itens_mod.ITENS[valor]
+            print(f"RECOMPENSA SHINY — item: {i['nome']} — {i['descricao']}")
+        else:
+            print(f"RECOMPENSA SHINY — +{valor} XP")
+
+    def escolher_oferta(self, opcoes, jogador):
+        """`opcoes`: lista de pares ("carta"|"item", id). Retorna o índice escolhido,
+        ou None para manter as cartas atuais (só permitido com as cartas cheias)."""
         print("\n" + _linha())
-        print("NOVAS CARTAS".center(LARGURA))
+        print("NOVAS OPÇÕES".center(LARGURA))
         print(_linha())
-        for i, cid in enumerate(opcoes, 1):
-            c = cartas_mod.CARTAS[cid]
-            print(f"{i}. {c['nome']} — {c['descricao']}")
-        cheio = len(atuais) >= cartas_mod.MAX_CARTAS
-        if cheio:
+        for i, (tipo, ident) in enumerate(opcoes, 1):
+            if tipo == "carta":
+                c = cartas_mod.CARTAS[ident]
+                print(f"{i}. [Carta] {c['nome']} — {c['descricao']}")
+            else:
+                item = itens_mod.ITENS[ident]
+                print(f"{i}. [Item] {item['nome']} — {item['descricao']}")
+        if len(jogador.cartas) >= cartas_mod.MAX_CARTAS:
             print(f"\nVocê já possui {cartas_mod.MAX_CARTAS} cartas.")
-            print("Escolha uma nova carta para substituir ou 0 para manter as atuais.")
+            print("Escolher uma carta substitui uma das atuais; 0 mantém tudo como está.")
             n = self._ler_numero("Escolha: ", 0, len(opcoes))
             return None if n == 0 else n - 1
         n = self._ler_numero("Escolha: ", 1, len(opcoes))

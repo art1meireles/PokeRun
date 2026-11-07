@@ -13,5 +13,14 @@
   {"id": "especialista_voador", "nome": "Especialista em Voador", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Voador.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Voador", "bonus_pct": 10}},
   {"id": "conhecimento", "nome": "Conhecimento", "descricao": "+5% de XP em qualquer batalha.", "efeito": {"tipo": "xp_global", "bonus_pct": 5}},
   {"id": "xp_extra", "nome": "XP Extra", "descricao": "+10% de XP em qualquer batalha.", "efeito": {"tipo": "xp_global", "bonus_pct": 10}},
-  {"id": "mestre_pokedex", "nome": "Mestre da Pokédex", "descricao": "+15% de XP contra Pokémon de nível 51 ou mais.", "efeito": {"tipo": "xp_nivel_minimo", "nivel_minimo": 51, "bonus_pct": 15}}
+  {"id": "mestre_pokedex", "nome": "Mestre da Pokédex", "descricao": "+15% de XP contra Pokémon de nível 51 ou mais.", "efeito": {"tipo": "xp_nivel_minimo", "nivel_minimo": 51, "bonus_pct": 15}},
+  {"id": "especialista_fada", "nome": "Especialista em Fada", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Fada.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Fada", "bonus_pct": 10}},
+  {"id": "especialista_gelo", "nome": "Especialista em Gelo", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Gelo.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Gelo", "bonus_pct": 10}},
+  {"id": "especialista_lutador", "nome": "Especialista em Lutador", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Lutador.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Lutador", "bonus_pct": 10}},
+  {"id": "especialista_aco", "nome": "Especialista em Aço", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Aço.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Aço", "bonus_pct": 10}},
+  {"id": "especialista_sombrio", "nome": "Especialista em Sombrio", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Sombrio.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Sombrio", "bonus_pct": 10}},
+  {"id": "especialista_inseto", "nome": "Especialista em Inseto", "descricao": "+10% de XP ao enfrentar Pokémon do tipo Inseto.", "efeito": {"tipo": "xp_tipo", "pokemon_tipo": "Inseto", "bonus_pct": 10}},
+  {"id": "estudioso", "nome": "Estudioso", "descricao": "+7% de XP em qualquer batalha.", "efeito": {"tipo": "xp_global", "bonus_pct": 7}},
+  {"id": "veterano", "nome": "Veterano", "descricao": "+10% de XP contra Pokémon de nível 26 ou mais.", "efeito": {"tipo": "xp_nivel_minimo", "nivel_minimo": 26, "bonus_pct": 10}},
+  {"id": "cacador_de_elite", "nome": "Caçador de Elite", "descricao": "+20% de XP contra Pokémon de nível 76 ou mais.", "efeito": {"tipo": "xp_nivel_minimo", "nivel_minimo": 76, "bonus_pct": 20}}
 ]

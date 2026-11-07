@@ -1,0 +1,6 @@
+[
+  {"id": "pular", "nome": "Pular Pergunta", "descricao": "Troca a pergunta atual por outra, sem contar acerto nem erro.", "efeito": {"tipo": "pular"}},
+  {"id": "acerto_garantido", "nome": "Acerto Garantido", "descricao": "Conta um acerto imediatamente, sem precisar responder.", "efeito": {"tipo": "acerto_garantido"}},
+  {"id": "eliminar_opcoes", "nome": "Eliminar Opções", "descricao": "Elimina duas alternativas erradas da pergunta atual.", "efeito": {"tipo": "eliminar_opcoes", "quantidade": 2}},
+  {"id": "segunda_chance", "nome": "Segunda Chance", "descricao": "Ao perder uma batalha, evita o Game Over (sem XP).", "efeito": {"tipo": "segunda_chance"}}
+]
