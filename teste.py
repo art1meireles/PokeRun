@@ -1,22 +1,10 @@
-"""Teste automático do Pokémon Quiz Roguelike.
-
-Roda em duas etapas, sem precisar digitar nada:
-
-  1. TESTES: confere os dados (JSON) e as regras do jogo (XP, oponentes,
-     cartas, perguntas, batalha, segunda chance...).
-  2. SIMULAÇÃO: um "jogador robô" joga jornadas completas, com diferentes
-     taxas de acerto, e mostra estatísticas (quantos chegam ao nível 100 etc.).
-
-Como usar (dentro da pasta do projeto):
-
-    python teste.py                       # testes + simulação (30 jornadas por robô)
-    python teste.py --jornadas 100        # simulação maior
-    python teste.py --seed 7              # outra semente (resultados diferentes)
-    python teste.py --sem-simulacao       # só os testes
-"""
+#Teste feito 100% por IA
 
 import argparse
+import builtins
 import collections
+import contextlib
+import io
 import json
 import random
 import sys
@@ -27,9 +15,12 @@ import cartas as cartas_mod
 import experiencia
 import main
 import oponentes
+import codigos
 import itens as itens_mod
+import salvamento
 import perguntas as perguntas_mod
 import shiny as shiny_mod
+import interface
 from jogador import Jogador
 from oponentes import Oponente
 from perguntas import BancoPerguntas
@@ -44,14 +35,15 @@ TIPOS_DE_EFEITO = {"xp_global", "xp_tipo", "xp_nivel_minimo"}
 # Funciona porque batalha.py e main.py só chamam métodos de um objeto `ui`
 # (não importam se ele é a tela de texto ou um robô).
 # ----------------------------------------------------------------------
+# Joga sozinho. `precisao` é a chance (0 a 1) de acertar cada pergunta:
+# um número único ou um dicionário {dificuldade: chance}.
 class InterfaceRobo:
-    """Joga sozinho. `precisao` é a chance (0 a 1) de acertar cada pergunta:
-    um número único ou um dicionário {dificuldade: chance}."""
-
-    def __init__(self, precisao=1.0, rng=None, usar_segunda_chance=True):
+    def __init__(self, precisao=1.0, rng=None, usar_segunda_chance=True, salvar_apos=None):
         self.precisao = precisao
         self.rng = rng or random.Random()
         self.usar_segunda_chance = usar_segunda_chance
+        self.salvar_apos = salvar_apos   # salva e sai depois de N batalhas
+        self.ultimo_codigo = None
         self.batalhas = 0
         self.vitorias = 0
         self.por_fase = collections.defaultdict(lambda: [0, 0])  # fase -> [vitórias, batalhas]
@@ -135,13 +127,15 @@ class InterfaceRobo:
     def mostrar_batalha(self, jogador, oponente):
         self._nivel_atual = jogador.nivel
     def mostrar_resposta(self, pergunta, acertou): pass
-    def pausa(self): pass
+    def entre_batalhas(self, codigo):
+        salvamento.ler_codigo(codigo)  # todo código gerado durante o jogo deve ser válido
+        self.ultimo_codigo = codigo
+        return self.salvar_apos is not None and self.batalhas >= self.salvar_apos
     def jogar_novamente(self): return False
 
 
+# Responde conforme um roteiro: lista de True (acerta) / False (erra).
 class InterfaceRoteirizada(InterfaceRobo):
-    """Responde conforme um roteiro: lista de True (acerta) / False (erra)."""
-
     def __init__(self, roteiro, aceitar_segunda_chance=True):
         super().__init__(usar_segunda_chance=aceitar_segunda_chance)
         self.roteiro = list(roteiro)
@@ -713,6 +707,199 @@ def perder_todos_os_shinies_nunca_causa_game_over():
     ui = RoboQueErraShiny(precisao=1.0, rng=random.Random(5), usar_segunda_chance=False)
     venceu = main.jogar(ui, random.Random(5))
     assert venceu and ui.shinies >= 1 and ui.recompensas_shiny == []
+
+
+# ===== 7d. SALVAMENTO (código de retomada) ==========================
+# (pokémon, nível, XP parcial, cartas, itens, nível do Shiny ou None se já apareceu, código)
+VETORES_DE_CODIGO = [
+    ("Eevee", 1, 0, [], "", 54, "PKRN-E01-S54-0-0-0000"),
+    ("Charmander", 2, 45, [], "E", 31, "PKRN-C02-S31-0-E-0045"),
+    ("Squirtle", 10, 399, ["AGU"], "", 72, "PKRN-S10-S72-AGU-0-0399"),
+    ("Pikachu", 42, 350, ["AGU", "FOG", "XPE"], "PS", 67, "PKRN-P42-S67-AGUFOGXPE-PS-0350"),
+    ("Bulbasaur", 26, 0, ["PLA", "VEN"], "S", 88, "PKRN-B26-S88-PLAVEN-S-0000"),
+    ("Charmander", 60, 1999, ["DRA", "GEL", "CAC"], "AE", None, "PKRN-C60-SXX-DRAGELCAC-AE-1999"),
+    ("Eevee", 99, 3959, ["XPE", "EST", "MPD"], "PAES", None, "PKRN-E99-SXX-XPEESTMPD-PAES-3959"),
+]
+
+
+# Monta o estado que corresponde a uma linha de VETORES_DE_CODIGO.
+def jogador_e_controle(pokemon, nivel, parcial, cartas, itens, shiny):
+    j = Jogador(pokemon, experiencia.xp_para_nivel(nivel) + parcial,
+                [codigos.CARTAS[c] for c in cartas], [codigos.ITENS[i] for i in itens])
+    controle = shiny_mod.ControleShiny(random.Random(0), shiny, garantido_ocorreu=shiny is None)
+    return j, controle
+
+
+@teste
+def codigos_batem_com_os_json():
+    salvamento.validar_tabelas()  # levanta erro se alguma carta/item/inicial estiver sem código
+    todos = list(codigos.CARTAS) + list(codigos.ITENS) + list(codigos.POKEMON_INICIAIS)
+    assert all(c == c.upper() and c.isalpha() for c in todos), "códigos devem ser só letras maiúsculas"
+
+
+@teste
+def salvamento_gera_os_codigos_de_exemplo():
+    for poke, nivel, parcial, cartas, itens, shiny, codigo in VETORES_DE_CODIGO:
+        j, controle = jogador_e_controle(poke, nivel, parcial, cartas, itens, shiny)
+        assert salvamento.gerar_codigo(j, controle) == codigo, codigo
+
+
+@teste
+def salvamento_le_os_codigos_de_exemplo():
+    for poke, nivel, parcial, cartas, itens, shiny, codigo in VETORES_DE_CODIGO:
+        e = salvamento.ler_codigo(codigo)
+        assert e.pokemon == poke and e.nivel == nivel, codigo
+        assert e.xp == experiencia.xp_para_nivel(nivel) + parcial, codigo
+        assert e.cartas == [codigos.CARTAS[c] for c in cartas], codigo
+        assert e.itens == [codigos.ITENS[i] for i in itens], codigo
+        assert e.shiny_nivel == shiny and e.shiny_ocorreu == (shiny is None), codigo
+
+
+@teste
+def salvamento_ida_e_volta_com_estados_aleatorios():
+    rng = random.Random(21)
+    todas = list(codigos.CARTAS.values())
+    for _ in range(3000):
+        j = Jogador(rng.choice(list(codigos.POKEMON_INICIAIS.values())),
+                    rng.randrange(experiencia.xp_para_nivel(experiencia.NIVEL_MAX)),
+                    rng.sample(todas, rng.randint(0, 3)),
+                    rng.sample(list(codigos.ITENS.values()), rng.randint(0, 4)))
+        ocorreu = rng.random() < 0.4
+        controle = shiny_mod.ControleShiny(rng, rng.randint(10, 95), ocorreu)
+        e = salvamento.ler_codigo(salvamento.gerar_codigo(j, controle))
+        assert (e.pokemon, e.xp, e.cartas) == (j.pokemon, j.xp, j.cartas)
+        assert sorted(e.itens) == sorted(j.itens)
+        assert e.shiny_ocorreu == ocorreu and (ocorreu or e.shiny_nivel == controle.nivel_garantido)
+
+
+@teste
+def salvamento_aceita_minusculas_e_espacos():
+    esperado = salvamento.ler_codigo("PKRN-P42-S67-AGUFOGXPE-PS-0350")
+    for texto in ("pkrn-p42-s67-agufogxpe-ps-0350", "PKRN P42 S67 AGUFOGXPE PS 0350",
+                  "  pkrn  p42-s67 agufogxpe ps 0350 "):
+        assert salvamento.ler_codigo(texto) == esperado, texto
+
+
+@teste
+def salvamento_recusa_codigos_invalidos():
+    invalidos = [
+        "PKRN-S10-S72-AGU-0-0450",         # XP parcial maior que o limite do nível 10 (399)
+        "PKRN-P42-S67-AGUFO-PS-0350",      # cartas fora de múltiplos de 3
+        "PKRN-P42-S67-AGUAGU-PS-0350",     # carta repetida
+        "PKRN-P42-S67-AGUFOGXPE-PSP-0350", # item repetido
+        "PKRN-X42-S67-AGU-PS-0350",        # Pokémon que não existe
+        "PKRN-P42-S67-AGX-PS-0350",        # carta que não existe
+        "PKRN-P42-S67-AGU-PS-350",         # XP sem 4 dígitos
+        "PKRN-P00-S67-AGU-PS-0000",        # nível 0
+        "PKRN-P100-S67-AGU-PS-0000",       # nível 100 não é salvável
+        "PKRN-P42-S05-AGU-PS-0350",        # Shiny fora de 10 a 95
+        "PKRN-P42-S96-AGU-PS-0350",
+        "PKRN-P42-S67-AGUFOGXPEPLA-PS-0350",  # 4 cartas
+        "PKRN-P42-S67-AGU-PX-0350",        # item que não existe
+        "PKRN-P42-S67-AGU-PS",             # faltou o trecho do XP
+        "XXXX-P42-S67-AGU-PS-0350",        # prefixo errado
+        "",
+    ]
+    for texto in invalidos:
+        try:
+            salvamento.ler_codigo(texto)
+        except salvamento.CodigoInvalido:
+            continue
+        raise AssertionError(f"aceitou código inválido: {texto!r}")
+
+
+@teste
+def salvamento_nao_gera_codigo_no_nivel_100():
+    j, controle = jogador_e_controle("Pikachu", 99, 0, [], "", 50)
+    j.xp = experiencia.xp_para_nivel(experiencia.NIVEL_MAX)
+    try:
+        salvamento.gerar_codigo(j, controle)
+    except ValueError:
+        return
+    raise AssertionError("não deveria gerar código no nível 100")
+
+
+@teste
+def shiny_retomado_respeita_o_nivel_e_o_estado_salvo():
+    rng = random.Random(1)
+    controle = shiny_mod.ControleShiny(rng, nivel_garantido=67)
+    assert controle.nivel_garantido == 67 and not controle.garantido_ocorreu
+    assert not controle.deve_aparecer(66, rng) and controle.deve_aparecer(67, rng)
+    ja_visto = shiny_mod.ControleShiny(rng, nivel_garantido=67, garantido_ocorreu=True)
+    assert ja_visto.garantido_ocorreu and ja_visto.nivel_garantido == 67
+
+
+# Robô que guarda o jogador visto no início da primeira batalha.
+class RoboQueGuardaOJogador(InterfaceRobo):
+    primeiro = None
+
+    def status_jogador(self, jogador):
+        if self.primeiro is None:
+            self.primeiro = (jogador.pokemon, jogador.xp, list(jogador.cartas), list(jogador.itens))
+
+
+@teste
+def jornada_retomada_comeca_do_estado_salvo_e_chega_ao_100():
+    estado = salvamento.ler_codigo("PKRN-P90-S95-AGUFOG-PS-0123")
+    ui = RoboQueGuardaOJogador(precisao=1.0, rng=random.Random(2))
+    assert main.jogar(ui, random.Random(2), estado) is True
+    assert ui.primeiro == ("Pikachu", experiencia.xp_para_nivel(90) + 123,
+                           ["especialista_agua", "especialista_fogo"], ["pular", "segunda_chance"])
+    assert ui.nivel_final == 100 and ui.shinies >= 1, "o Shiny pendente no nível 95 deveria aparecer"
+
+
+@teste
+def salvar_e_sair_devolve_none_e_o_codigo_permite_continuar():
+    ui = InterfaceRobo(precisao=1.0, rng=random.Random(3), salvar_apos=8)
+    assert main.jogar(ui, random.Random(3)) is None and ui.batalhas == 8
+    estado = salvamento.ler_codigo(ui.ultimo_codigo)
+    assert estado.pokemon == "Charmander"  # o robô escolhe o primeiro inicial
+    ui2 = InterfaceRobo(precisao=1.0, rng=random.Random(4))
+    assert main.jogar(ui2, random.Random(4), estado) is True and ui2.nivel_final == 100
+    assert ui2.niveis_vistos[0] > estado.nivel, "deveria continuar a partir do nível salvo"
+
+
+@teste
+def shiny_garantido_ja_visto_nao_volta_a_ser_garantido_apos_retomar():
+    # Jogador com Shiny já visto: nenhum encontro forçado (só a chance extra de 1 em 128).
+    estado = salvamento.ler_codigo("PKRN-P50-SXX-0-0-0000")
+    ui = InterfaceRobo(precisao=1.0, rng=random.Random(8))
+    main.jogar(ui, random.Random(8), estado)
+    assert ui.shinies < 10, "muitos Shinies para quem já viu o garantido"
+
+
+# Executa `funcao` com input() devolvendo `entradas`; devolve (resultado, saída).
+def _com_entradas(entradas, funcao):
+    fila = iter(entradas)
+    original = builtins.input
+    builtins.input = lambda prompt="": next(fila)
+    saida = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(saida):
+            resultado = funcao()
+    finally:
+        builtins.input = original
+    return resultado, saida.getvalue()
+
+
+@teste
+def console_entre_batalhas_salvar_mostra_codigo_e_ficha():
+    codigo = "PKRN-P42-S67-AGUFOGXPE-PS-0350"
+    ui = interface.InterfaceConsole()
+    sair, saida = _com_entradas(["s"], lambda: ui.entre_batalhas(codigo))
+    assert sair is True and codigo in saida
+    for trecho in ("Pikachu", "Especialista em Água", "XP Extra", "Pular Pergunta", "nível 67"):
+        assert trecho in saida, f"a ficha deveria mostrar: {trecho}"
+    seguir, saida = _com_entradas([""], lambda: ui.entre_batalhas(codigo))
+    assert seguir is False and codigo not in saida, "Enter só continua, sem mostrar o código"
+
+
+@teste
+def console_menu_inicial():
+    ui = interface.InterfaceConsole()
+    assert _com_entradas(["1"], ui.menu_inicial)[0] == ("nova", None)
+    texto = "pkrn p42 s67 agu ps 0350"
+    assert _com_entradas(["2", texto], ui.menu_inicial)[0] == ("continuar", texto)
 
 
 # ===== 8. LAÇO PRINCIPAL (main.py) ===================================

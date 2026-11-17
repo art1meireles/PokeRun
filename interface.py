@@ -1,22 +1,23 @@
 import cartas as cartas_mod
 import experiencia
 import itens as itens_mod
+import salvamento
 from oponentes import NOMES_DIFICULDADE
 
-LARGURA = 44
+LARGURA = 44  # largura das telas, em caracteres
 
 
+# Linha de `char` na largura da tela.
 def _linha(char="="):
     return char * LARGURA
 
 
 class InterfaceConsole:
-    """Interface em texto, com entrada pelo teclado."""
-
-    # ---------- entrada ----------
+    # Lê uma linha, sem espaços nas pontas.
     def _ler(self, prompt: str) -> str:
         return input(prompt).strip()
 
+    # Pede um inteiro de `minimo` a `maximo` até ser válido.
     def _ler_numero(self, prompt: str, minimo: int, maximo: int) -> int:
         while True:
             texto = self._ler(prompt)
@@ -32,7 +33,6 @@ class InterfaceConsole:
             if texto in ("n", "nao", "não"):
                 return False
 
-    # ---------- telas ----------
     def mensagem(self, texto: str) -> None:
         print(texto)
 
@@ -83,7 +83,6 @@ class InterfaceConsole:
         print(_linha())
 
     def perguntar(self, pergunta, acertos, erros, eliminadas=(), itens_usaveis=()):
-        """Retorna o índice da resposta, ou None se o jogador digitou 0 (menu de itens)."""
         print(f"\nAcertos: {acertos}/3   Erros: {erros}/3")
         print(f"\n{pergunta.texto}")
         for i, op in enumerate(pergunta.opcoes):
@@ -107,7 +106,6 @@ class InterfaceConsole:
             print("  Opção inválida.")
 
     def escolher_item(self, itens_usaveis):
-        """Menu de itens. Retorna o id do item escolhido ou None para voltar."""
         print("\nITENS (1 por batalha):")
         for i, ident in enumerate(itens_usaveis, 1):
             item = itens_mod.ITENS[ident]
@@ -124,6 +122,7 @@ class InterfaceConsole:
         else:
             print(f"✘ Errou! Resposta certa: {pergunta.opcoes[pergunta.correta]}")
 
+    # True se o jogador quer gastar a Segunda Chance.
     def oferecer_segunda_chance(self) -> bool:
         print("\nVocê perdeu a batalha!")
         return self._confirmar("Usar Segunda Chance para evitar o Game Over?")
@@ -153,7 +152,6 @@ class InterfaceConsole:
         print(_linha("*"))
 
     def recompensa_shiny(self, tipo, valor) -> None:
-        """tipo: "carta" (valor = id), "item" (valor = id) ou "xp" (valor = quantidade)."""
         if tipo == "carta":
             c = cartas_mod.CARTAS[valor]
             print(f"RECOMPENSA SHINY — carta: {c['nome']} — {c['descricao']}")
@@ -164,8 +162,6 @@ class InterfaceConsole:
             print(f"RECOMPENSA SHINY — +{valor} XP")
 
     def escolher_oferta(self, opcoes, jogador):
-        """`opcoes`: lista de pares ("carta"|"item", id). Retorna o índice escolhido,
-        ou None para manter as cartas atuais (só permitido com as cartas cheias)."""
         print("\n" + _linha())
         print("NOVAS OPÇÕES".center(LARGURA))
         print(_linha())
@@ -191,6 +187,7 @@ class InterfaceConsole:
             print(f"{i}. {c['nome']} — {c['descricao']}")
         return self._ler_numero("Escolha: ", 1, len(atuais)) - 1
 
+
     def game_over(self, jogador) -> None:
         print("\n" + _linha())
         print("GAME OVER".center(LARGURA))
@@ -207,5 +204,30 @@ class InterfaceConsole:
     def jogar_novamente(self) -> bool:
         return self._confirmar("\nJogar novamente?")
 
-    def pausa(self) -> None:
-        self._ler("\n[Enter para continuar]")
+    def menu_inicial(self):
+        print("\n1. Nova jornada")
+        print("2. Continuar com código")
+        if self._ler_numero("Escolha: ", 1, 2) == 1:
+            return "nova", None
+        return "continuar", self._ler("Cole o código: ")
+
+    def codigo_invalido(self, motivo) -> None:
+        print(f"\nCódigo inválido: {motivo}.")
+
+    # Enter continua; S mostra o código e sai. True = salvar e sair.
+    def entre_batalhas(self, codigo) -> bool:
+        while True:
+            texto = self._ler("\n[Enter] continuar   [S] salvar e sair: ").lower()
+            if texto == "":
+                return False
+            if texto in ("s", "salvar"):
+                print("\n" + _linha())
+                print("CÓDIGO DE SALVAMENTO".center(LARGURA))
+                print(_linha())
+                print(codigo)
+                print()
+                for rotulo, valor in salvamento.ficha(salvamento.ler_codigo(codigo)):
+                    print(f"  {rotulo:<8} {valor}")
+                print(_linha())
+                print("Guarde o código: ele permite continuar de onde parou.")
+                return True
